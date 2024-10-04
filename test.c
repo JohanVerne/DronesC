@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <SDL2/SDL.h>  
+
 
 // Structure représentant un drone
 typedef struct
@@ -78,6 +80,8 @@ void capturer_image(Drone *drone)
     }
 }
 
+
+
 // Gestion de la destruction d'un drone (désactivation)
 void detruire_drone(Drone *drone)
 {
@@ -85,8 +89,14 @@ void detruire_drone(Drone *drone)
     printf("Drone %d a été détruit.\n", drone->id);
 }
 
+void draw_drone(SDL_Renderer *renderer, Drone *drone) {
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Couleur rouge pour les drones
+    SDL_Rect rect = { (int)drone->x, (int)drone->y, 10, 10 }; // Taille du drone
+    SDL_RenderFillRect(renderer, &rect);
+}
+
 // Simulation de la gestion des drones
-int main()
+int main(int argc, char **argv)
 {
     // Initialisation de la zone et des drones
     Zone zone;
@@ -100,10 +110,7 @@ int main()
     init_drone(&drones[1], 2, 50.0, 60.0, 5.0, 1.2, 25.0);
     init_drone(&drones[2], 3, 30.0, 40.0, 5.0, 1.8, 35.0);
 
-    // Simuler le déplacement des drones
-    deplacer_drone(&drones[0], 1.0, 1.0, 0.0);
-    deplacer_drone(&drones[1], -1.0, -1.0, 0.0);
-    deplacer_drone(&drones[2], 0.5, 0.5, 0.0);
+
 
     // Vérification des voisins
     if (est_voisin(&drones[0], &drones[1]))
@@ -115,8 +122,7 @@ int main()
         printf("Drone %d et Drone %d ne sont pas à portée de communication.\n", drones[0].id, drones[1].id);
     }
 
-    // Simulation de la destruction d'un drone
-    detruire_drone(&drones[1]);
+
 
     // Essai de capture d'images par tous les drones
     capturer_image(&drones[0]);
@@ -124,5 +130,54 @@ int main()
     capturer_image(&drones[2]);
 
     printf("\n");
-    return 0;
+
+    SDL_Window *window = NULL;
+
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+
+    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+    {
+        SDL_Log("ERREUR : Initialisation SDL > %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    window = SDL_CreateWindow("Première fenêtre", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
+
+    if(window = NULL)
+    {
+        SDL_Log("ERREUR : Creation > %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    int running = 1;
+    SDL_Event event;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = 0;
+            }
+        }
+
+        // Effacer l'écran
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Noir pour l'arrière-plan
+        SDL_RenderClear(renderer);
+
+        // Dessiner les drones
+        for (int i = 0; i < 3; i++) {
+            draw_drone(renderer, &drones[i]);
+        }
+
+        // Mettre à jour l'affichage
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+
+    SDL_Quit();
+
+    return EXIT_SUCCESS;
+
 }
