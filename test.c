@@ -105,5 +105,6 @@ int main() {
     capturer_image(&drones[1]);  // Drone détruit
     capturer_image(&drones[2]);
 
+    printf("\n");
     return 0;
 }
