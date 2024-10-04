@@ -27,19 +27,40 @@ void definir_zone(Zone *zone, float xMin, float yMin, float xMax, float yMax)
 }
 
 // Déplacement des drones (mise à jour des positions)
-void deplacer_drone(Drone *drone, float dx, float dy, float dz) // TODO :ajouter les restrictions de limite de zone et en intégrant la gestion des collisions potentielles entre drones. (potentiellement avec une autre fonction)
+void deplacer_drone(Drone *drone, Zone *zone, float dx, float dy, float dz) // TODO :ajouter les restrictions de limite de zone et en intégrant la gestion des collisions potentielles entre drones. (potentiellement avec une autre fonction)
 {
     if (drone->actif)
     {
-        drone->x += dx * drone->vitesse;
-        drone->y += dy * drone->vitesse;
-        drone->z += dz * drone->vitesse;
-        printf("Drone %d déplacé à la position (%.2f, %.2f, %.2f)\n", drone->id, drone->x, drone->y, drone->z);
+        float nouveau_x = drone->x + dx * drone->vitesse;
+        float nouveau_y = drone->y + dy * drone->vitesse;
+        float nouveau_z = drone->z + dz * drone->vitesse;
+        if (restrictionZone(zone, nouveau_x, nouveau_y, nouveau_z))
+        {
+            drone->x += dx * drone->vitesse;
+            drone->y += dy * drone->vitesse;
+            drone->z += dz * drone->vitesse;
+            printf("Drone %d déplacé à la position (%.2f, %.2f, %.2f)\n", drone->id, drone->x, drone->y, drone->z);
+        }
+
+        else
+        {
+            printf("Déplacement impossible du drone %d: sortie de la zone\n", drone->id);
+            return;
+        }
     }
     else
     {
         printf("Drone %d est inactif\n", drone->id);
     }
+}
+
+int restrictionZone(Zone *zone, float nx, float ny, float nz)
+{
+    if (nx > zone->xMin && nx < zone->xMax && ny > zone->yMin && ny < zone->yMax && nz > 0)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // Vérifie si le drone1 est à portée de communication du drone2
@@ -86,10 +107,10 @@ int main()
     init_drone(&drones[2], 3, 30.0, 40.0, 5.0, 1.8, 35.0);
 
     // Simuler le déplacement des drones
-    deplacer_drone(&drones[0], 1.0, 1.0, 0.0);
-    deplacer_drone(&drones[1], -1.0, -1.0, 0.0);
-    deplacer_drone(&drones[2], 0.5, 0.5, 0.0);
-
+    deplacer_drone(&drones[0], &zone, 1.0, 1.0, 0.0);
+    deplacer_drone(&drones[1], &zone, -1.0, -1.0, 0.0);
+    deplacer_drone(&drones[2], &zone, 0.5, 0.5, 0.0);
+    deplacer_drone(&drones[0], &zone, 100.0, 0.0, 0.0); // Drone sortie de la zone
     // Vérification des voisins
     if (est_voisin(&drones[0], &drones[1]))
     {
