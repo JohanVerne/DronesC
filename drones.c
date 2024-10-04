@@ -27,7 +27,7 @@ void definir_zone(Zone *zone, float xMin, float yMin, float xMax, float yMax)
 }
 
 // Déplacement des drones (mise à jour des positions)
-void deplacer_drone(Drone *drone, float dx, float dy, float dz)
+void deplacer_drone(Drone *drone, float dx, float dy, float dz) // TODO :ajouter les restrictions de limite de zone et en intégrant la gestion des collisions potentielles entre drones. (potentiellement avec une autre fonction)
 {
     if (drone->actif)
     {
