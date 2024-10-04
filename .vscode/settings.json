@@ -1,5 +1,7 @@
 {
   "files.associations": {
-    "fonctionsetdefinitions.h": "c"
+    "fonctionsetdefinitions.h": "c",
+    "math.h": "c",
+    "stdio.h": "c"
   }
 }
