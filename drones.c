@@ -70,7 +70,7 @@ void detruire_drone(Drone *drone)
     printf("Drone %d a été détruit.\n", drone->id);
 }
 
-// Simulation de la gestion des drones
+// Simulation de base de la gestion des drones
 int main()
 {
     // Initialisation de la zone et des drones
