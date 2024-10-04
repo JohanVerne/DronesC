@@ -1,22 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
-// Structure représentant un drone
-typedef struct
-{
-    int id;           // Identifiant unique du drone
-    float x, y, z;    // Position du drone (XYZ)
-    float vitesse;    // Vitesse de déplacement du drone
-    float portee_com; // Portée de communication du drone
-    int actif;        // Indique si le drone est actif ou détruit
-} Drone;
-
-// Structure représentant la zone à surveiller
-typedef struct
-{
-    float xMin, yMin, xMax, yMax; // Coordonnées de la zone
-} Zone;
+#include "fonctionsEtStructures.h"
 
 // Initialisation d'un drone
 void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, float portee_com)
