@@ -1,4 +1,4 @@
-default : test
+default : drones
 
-test : test.c
-	gcc -g -Wall test.c -o test -lm
+test : drones.c
+	gcc -g -Wall drones.c -o drones -lm
