@@ -58,6 +58,61 @@ void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone) 
     SDL_RenderFillRect(renderer, &rect);
 }
 
+void apply_blur(SDL_Surface *surface, float blur) {
+    // Obtenir les dimensions de l'image
+    int width = surface->w;
+    int height = surface->h;
+
+    // Verrouiller la surface pour l'accès direct aux pixels
+    SDL_LockSurface(surface);
+
+    // Pointeur vers les pixels de la surface
+    Uint32 *pixels = (Uint32 *)surface->pixels;
+
+    // Créer un tableau temporaire pour stocker les nouveaux pixels
+    Uint32 *new_pixels = malloc(width * height * sizeof(Uint32));
+
+    // Parcourir chaque pixel de l'image
+    for (int y = blur; y < height -blur; y++) {
+        for (int x = blur; x < width - blur; x++) {
+            int r_sum = 0, g_sum = 0, b_sum = 0;
+
+            // Moyenne des couleurs des pixels voisins (3x3 box blur)
+            for (int dy = -blur; dy <= blur; dy++) {
+                for (int dx = -blur; dx <= blur; dx++) {
+                    Uint32 pixel = pixels[(y + dy) * width + (x + dx)];
+
+                    // Extraire les composants rouge, vert, bleu du pixel
+                    Uint8 r, g, b;
+                    SDL_GetRGB(pixel, surface->format, &r, &g, &b);
+
+                    // Ajouter les composants au total
+                    r_sum += r;
+                    g_sum += g;
+                    b_sum += b;
+                }
+            }
+
+            // Calculer la moyenne des couleurs
+            Uint8 r_avg = r_sum / 9;
+            Uint8 g_avg = g_sum / 9;
+            Uint8 b_avg = b_sum / 9;
+
+            // Réassembler la couleur et la stocker dans le tableau temporaire
+            new_pixels[y * width + x] = SDL_MapRGB(surface->format, r_avg, g_avg, b_avg);
+        }
+    }
+
+    // Copier les nouveaux pixels dans la surface
+    memcpy(pixels, new_pixels, width * height * sizeof(Uint32));
+
+    // Libérer le tableau temporaire
+    free(new_pixels);
+
+    // Déverrouiller la surface
+    SDL_UnlockSurface(surface);
+}
+
 int main() {
 
     // Initialiser SDL et SDL_image
@@ -76,6 +131,8 @@ int main() {
         printf("Erreur de chargement de l'image: %s\n", IMG_GetError());
         return 1;
     }
+    
+    apply_blur(image_surface, 1);
 
     // Convertir l'image en texture pour l'afficher
     SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, image_surface);
