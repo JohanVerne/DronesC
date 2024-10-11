@@ -25,6 +25,6 @@ void deplacer_drone(Drone *drone, Zone *zone, float dx, float dy, float dz);
 int est_voisin(Drone *drone1, Drone *drone2);
 void capturer_image(Drone *drone);
 void detruire_drone(Drone *drone);
-int restrictionZone(Zone *zone, float nx, float ny, float nz);
-
+int restrictionZone(Zone *zone, float nx, float ny, float nz, int dims[3]);
+int collisionDrones(Drone *drone1, Drone *drone2);
 #endif

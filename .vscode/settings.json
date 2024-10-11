@@ -3,5 +3,6 @@
     "fonctionsetdefinitions.h": "c",
     "math.h": "c",
     "stdio.h": "c"
-  }
+  },
+  "todo-tree.tree.showBadges": true
 }
