@@ -104,20 +104,6 @@ int est_voisin(Drone *drone1, Drone *drone2)
     return distance <= drone1->portee_com;
 }
 
-// Capture d'une image par un drone
-void capturer_image(Drone *drone)
-{
-    if (drone->actif)
-    {
-        printf("Drone %d capture une image à la position (%.2f, %.2f, %.2f)\n", drone->id, drone->x, drone->y, drone->z);
-        // TODO : Code pour générer une image (en fonction des specs)
-    }
-    else
-    {
-        printf("Drone %d est inactif et ne peut pas capturer d'image.\n", drone->id);
-    }
-}
-
 // Gestion de la destruction d'un drone (désactivation)
 void detruire_drone(Drone *drone)
 {
@@ -126,7 +112,7 @@ void detruire_drone(Drone *drone)
 }
 
 // Simulation de base de la gestion des drones
-int main()
+int test()
 {
     // Initialisation de la zone et des drones
     Zone zone;
@@ -170,11 +156,6 @@ int main()
 
     // Simulation de la destruction d'un drone
     detruire_drone(&drones[1]);
-
-    // Essai de capture d'images par tous les drones
-    capturer_image(&drones[0]);
-    capturer_image(&drones[1]); // Drone détruit
-    capturer_image(&drones[2]);
 
     printf("\n");
     return 0;
