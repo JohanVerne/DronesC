@@ -94,7 +94,7 @@ int collisionDrones(Drone *drone1, Drone *drone2)
             }
         }
     }
-    return 0; // pas de collision détectéé
+    return 0; // pas de collision détectée
 }
 
 // Vérifie si le drone1 est à portée de communication du drone2
@@ -132,7 +132,7 @@ int main()
     Zone zone;
     definir_zone(&zone, 0.0, 0.0, 100.0, 100.0);
 
-    int nb_drones = 3;
+    int nb_drones = 4;
     Drone drones[nb_drones];
 
     int dims[3] = {5, 5, 5};
@@ -141,6 +141,17 @@ int main()
     init_drone(&drones[0], 1, 10.0, 20.0, 5.0, 1.5, 30.0, dims);
     init_drone(&drones[1], 2, 50.0, 60.0, 5.0, 1.2, 25.0, dims);
     init_drone(&drones[2], 3, 30.0, 40.0, 5.0, 1.8, 35.0, dims);
+    init_drone(&drones[3], 4, 30.0, 36.0, 5.0, 1.0, 20.0, dims); // drone qui rentre en collision avec 3
+
+    // Simulation de la collision entre drones 3 et 4
+    if (collisionDrones(&drones[2], &drones[3]))
+    {
+        printf("Collision entre drones %d et %d.\n", drones[2].id, drones[3].id);
+    }
+    else
+    {
+        printf("Pas de collision entre drones %d et %d.\n", drones[2].id, drones[3].id);
+    }
 
     // Simuler le déplacement des drones
     deplacer_drone(&drones[0], &zone, 1.0, 1.0, 0.0);
