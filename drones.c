@@ -160,3 +160,4 @@ int test()
     printf("\n");
     return 0;
 }
+// test(); // Lancement de la simulation de base
