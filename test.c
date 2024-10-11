@@ -49,7 +49,7 @@ void deplacer_drones(Drone *drones, int nb_drones) {
 // Dessiner le drone et effacer le masque noir à sa nouvelle position
 void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone) {
     // Afficher la carte à l'endroit où le drone passe (effacer le masque noir)
-    SDL_Rect src_rect = { (int)drone->x, (int)drone->y, ((int)drone->taille)*2, ((int)drone->taille)*2 }; // Zone à dévoiler
+    SDL_Rect src_rect = { (int)drone->x -5*((int)drone->taille/10), (int)drone->y -5*((int)drone->taille/10), ((int)drone->taille)*2, ((int)drone->taille)*2 }; // Zone à dévoiler
     SDL_RenderCopy(renderer, map_texture, &src_rect, &src_rect);
 
     // Dessiner le drone à sa nouvelle position
@@ -86,9 +86,9 @@ int main() {
     Drone drones[nb_drones];
 
     // Initialisation des drones avec des paramètres arbitraires
-    init_drone(&drones[0], 1, 750.0, 20.0, 5.0, 1.5, 30.0, 10);
+    init_drone(&drones[0], 1, 750.0, 20.0, 5.0, 1.5, 30.0, 30);
     init_drone(&drones[1], 2, 30.0, 20.0, 5.0, 1.2, 25.0, 20);
-    init_drone(&drones[2], 3, 30.0, 550.0, 5.0, 1.8, 35.0, 15);
+    init_drone(&drones[2], 3, 30.0, 550.0, 5.0, 1.8, 35.0, 10);
 
     int running = 1;
     SDL_Event event;
