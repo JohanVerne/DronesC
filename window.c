@@ -66,16 +66,24 @@ int main()
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     // Charger l'image de la carte
-    SDL_Surface *image_surface = IMG_Load("carte.png"); // Charger l'image depuis un fichier
+    SDL_Surface *image_surface = IMG_Load("carte.png");
     if (!image_surface)
     {
         printf("Erreur de chargement de l'image: %s\n", IMG_GetError());
         return 1;
     }
 
-    // Convertir l'image en texture pour l'afficher
-    SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, image_surface);
-    SDL_FreeSurface(image_surface); // Libérer la surface maintenant que nous avons la texture
+    // Redimensionner l'image
+    SDL_Surface *scaled_surface = SDL_CreateRGBSurface(0,
+                                                       SDL_GetWindowSurface(window)->w,
+                                                       SDL_GetWindowSurface(window)->h,
+                                                       32, 0, 0, 0, 0);
+    SDL_BlitScaled(image_surface, NULL, scaled_surface, NULL);
+
+    // Convertir la surface redimensionnée en texture
+    SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, scaled_surface);
+    SDL_FreeSurface(image_surface);  // Libérer la surface d'origine
+    SDL_FreeSurface(scaled_surface); // Libérer la surface redimensionnée
 
     // Initialisation de la zone et des drones
     Zone zone;
