@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "fonctionsEtStructures.h"
+#include <SDL2/SDL.h>
 
 // Initialisation d'un drone
 void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, float portee_com, int dims[3])
@@ -12,7 +13,8 @@ void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, 
     drone->z = z;
     drone->vitesse = vitesse;
     drone->portee_com = portee_com;
-    drone->actif = 1; // Drone actif par défaut
+    drone->actif = 1;      // Drone actif par défaut
+    drone->texture = NULL; // initialize texture to NULL
     for (int i = 0; i < 3; i++)
     {
         drone->dimensions[i] = dims[i];

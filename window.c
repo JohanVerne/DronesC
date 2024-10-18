@@ -20,6 +20,23 @@ void deplacer_drones(int nb_drones, Drone drones[nb_drones], Zone zone)
         deplacer_drone(&drones[i], &zone, dx, dy, dz);
     }
 }
+SDL_Texture *charger_image_drone(const char *fichier_image, SDL_Renderer *renderer)
+{
+
+    fichier_image = "fichier_image.png";
+    // Charger l'image avec SDL_image
+    SDL_Surface *surface = IMG_Load(fichier_image);
+    if (!surface)
+    {
+        printf("Erreur lors du chargement de l'image %s: %s\n", fichier_image, IMG_GetError());
+        return NULL;
+    }
+
+    // Convertir la surface en texture
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface); // Libérer la surface après la conversion en texture
+    return texture;
+}
 
 // Dessiner le drone et effacer le masque noir à sa nouvelle position
 void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone)
@@ -45,11 +62,92 @@ void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone)
     if (src_rect.y + src_rect.h > 600)
         src_rect.h = 600 - src_rect.y; // Supposant une hauteur de fenêtre de 600
     SDL_RenderCopy(renderer, map_texture, &src_rect, &src_rect);
+}
 
-    // Dessiner le drone à sa nouvelle position
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);                                                                                                         // Couleur rouge pour les drones
-    SDL_Rect rect = {(int)drone->x - drone->z / 2, (int)drone->y - drone->z / 2, (int)drone->dimensions[0] + drone->z, (int)drone->dimensions[1] + drone->z}; // Taille du drone
-    SDL_RenderFillRect(renderer, &rect);
+void apply_blur(SDL_Surface *surface, float blur)
+{
+    // Obtenir les dimensions de l'image
+    int width = surface->w;
+    int height = surface->h;
+
+    // Verrouiller la surface pour l'accès direct aux pixels
+    SDL_LockSurface(surface);
+
+    // Pointeur vers les pixels de la surface
+    Uint32 *pixels = (Uint32 *)surface->pixels;
+
+    // Créer un tableau temporaire pour stocker les nouveaux pixels
+    Uint32 *new_pixels = malloc(width * height * sizeof(Uint32));
+
+    // Parcourir chaque pixel de l'image
+    for (int y = 1; y < height - 1; y++)
+    {
+        for (int x = 1; x < width - 1; x++)
+        {
+            int r_sum = 0, g_sum = 0, b_sum = 0;
+
+            // Moyenne des couleurs des pixels voisins (3x3 box blur)
+            for (int dy = -blur; dy <= blur; dy++)
+            {
+                for (int dx = -blur; dx <= blur; dx++)
+                {
+                    Uint32 pixel = pixels[(y + dy) * width + (x + dx)];
+
+                    // Extraire les composants rouge, vert, bleu du pixel
+                    Uint8 r, g, b;
+                    SDL_GetRGB(pixel, surface->format, &r, &g, &b);
+
+                    // Ajouter les composants au total
+                    r_sum += r;
+                    g_sum += g;
+                    b_sum += b;
+                }
+            }
+
+            // Calculer la moyenne des couleurs
+            Uint8 r_avg = r_sum / 9;
+            Uint8 g_avg = g_sum / 9;
+            Uint8 b_avg = b_sum / 9;
+
+            // Réassembler la couleur et la stocker dans le tableau temporaire
+            new_pixels[y * width + x] = SDL_MapRGB(surface->format, r_avg, g_avg, b_avg);
+        }
+    }
+
+    // Copier les nouveaux pixels dans la surface
+    memcpy(pixels, new_pixels, width * height * sizeof(Uint32));
+
+    // Libérer le tableau temporaire
+    free(new_pixels);
+
+    // Déverrouiller la surface
+    SDL_UnlockSurface(surface);
+}
+void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer)
+{
+    for (int i = 0; i < nb_drones; i++)
+    {
+        if (drones[i].actif && drones[i].texture)
+        {
+            int w, h;
+            SDL_QueryTexture(drones[i].texture, NULL, NULL, &w, &h);
+
+            // Scale the drone image based on the z parameter
+            float scale = drones[i].z / 100.0f; // adjust the scale factor as needed
+            int scaled_w = (int)(w * scale);
+            int scaled_h = (int)(h * scale);
+
+            // Définir la zone où dessiner l'image du drone
+            SDL_Rect destination;
+            destination.x = (int)drones[i].x - scaled_w / 2;
+            destination.y = (int)drones[i].y - scaled_h / 2;
+            destination.w = scaled_w;
+            destination.h = scaled_h;
+
+            // Dessiner la texture du drone
+            SDL_RenderCopy(renderer, drones[i].texture, NULL, &destination);
+        }
+    }
 }
 
 // Simulation de la gestion des drones
@@ -99,6 +197,11 @@ int main()
     init_drone(&drones[1], 2, 30.0, 20.0, 5.0, 1.2, 25.0, dims);
     init_drone(&drones[2], 3, 530.0, 50.0, 5.0, 1.8, 35.0, dims);
 
+    for (int i = 0; i < nb_drones; i++)
+    {
+        drones[i].texture = charger_image_drone("fichier_image.png", renderer);
+    }
+
     int running = 1;
     SDL_Event event;
 
@@ -126,13 +229,22 @@ int main()
             reveal_map(renderer, map_texture, &drones[i]);
         }
 
+        dessiner_drones(drones, 3, renderer);
+
         // Mettre à jour l'affichage
         SDL_RenderPresent(renderer);
 
         // Attendre 16 millisecondes (~60 FPS)
         SDL_Delay(16);
     }
-
+    for (int i = 0; i < nb_drones; i++)
+    {
+        if (drones[i].texture)
+        {
+            SDL_DestroyTexture(drones[i].texture);
+        }
+    }
+    SDL_FreeSurface(image_surface);
     // Nettoyer les ressources
     SDL_DestroyTexture(map_texture);
     SDL_DestroyRenderer(renderer);

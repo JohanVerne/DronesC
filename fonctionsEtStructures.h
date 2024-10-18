@@ -1,5 +1,6 @@
 #ifndef MES_FONCTIONS_H
 #define MES_FONCTIONS_H
+#include <SDL2/SDL.h>
 
 // Structure représentant un drone
 typedef struct
@@ -10,6 +11,7 @@ typedef struct
     float portee_com;  // Portée de communication du drone
     int actif;         // Indique si le drone est actif ou détruit
     int dimensions[3]; // Dimensions du drone (longueur, largeur, hauteur)
+    SDL_Texture *texture;
 } Drone;
 
 // Structure représentant la zone à surveiller
@@ -26,4 +28,7 @@ int est_voisin(Drone *drone1, Drone *drone2);
 void detruire_drone(Drone *drone);
 int restrictionZone(Zone *zone, float nx, float ny, float nz, int dims[3]);
 int collisionDrones(Drone *drone1, Drone *drone2);
+SDL_Texture *charger_image_drone(const char *fichier_image, SDL_Renderer *renderer);
+void apply_blur(SDL_Surface *surface, float blur);
+void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer);
 #endif
