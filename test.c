@@ -3,6 +3,11 @@
 #include <math.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>  // Bibliothèque pour charger des images
+#include <time.h>
+
+#define MAX_X 780  // Limite en X (largeur de la zone)
+#define MAX_Y 590  // Limite en Y (hauteur de la zone)
+
 
 // Structure représentant un drone
 typedef struct {
@@ -13,7 +18,24 @@ typedef struct {
     int actif;        // Indique si le drone est actif ou détruit
     float prev_x, prev_y;
     float taille;  // Position précédente du drone pour laisser le tracé
+    SDL_Texture *texture;
 } Drone;
+
+SDL_Texture* charger_image_drone(const char *fichier_image, SDL_Renderer *renderer) {
+
+    fichier_image = "fichier_image.png";
+    // Charger l'image avec SDL_image
+    SDL_Surface *surface = IMG_Load(fichier_image);
+    if (!surface) {
+        printf("Erreur lors du chargement de l'image %s: %s\n", fichier_image, IMG_GetError());
+        return NULL;
+    }
+
+    // Convertir la surface en texture
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);  // Libérer la surface après la conversion en texture
+    return texture;
+}
 
 // Initialisation d'un drone
 void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, float portee_com, float taille) {
@@ -31,18 +53,45 @@ void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, 
 }
 
 // Déplacement des drones (mise à jour des positions)
-void deplacer_drones(Drone *drones, int nb_drones) {
-    for (int i = 0; i < nb_drones; i++) {
-        drones[i].prev_x = drones[i].x; // Enregistrer la position précédente
-        drones[i].prev_y = drones[i].y;
+void deplacer_drones(Drone *drones, int nb_drones, float facteur_1, float facteur_2, float facteur_3, float facteur_4, float facteur_5, float facteur_6) {
 
-        // Simuler un déplacement simple pour chaque drone
-        drones[i].x += drones[i].vitesse; // Déplacement à droite en fonction de la vitesse
-        drones[i].y += drones[i].vitesse; // Déplacement vers le bas en fonction de la vitesse
+    
+    drones[0].prev_x = drones[0].x; // Enregistrer la position précédente
+    drones[0].prev_y = drones[0].y;
 
+    float dx_0 = facteur_1* drones[0].vitesse;
+    float dy_0 = facteur_2* drones[0].vitesse;
+            
+    drones[0].x += dx_0;
+    drones[0].y += dy_0;
+
+    drones[1].prev_x = drones[1].x; // Enregistrer la position précédente
+    drones[1].prev_y = drones[1].y;
+
+    float dx_1 = facteur_3* drones[1].vitesse;
+    float dy_1 = facteur_4* drones[1].vitesse;
+            
+    drones[1].x += dx_1;
+    drones[1].y += dy_1;
+
+    drones[2].prev_x = drones[2].x; // Enregistrer la position précédente
+    drones[2].prev_y = drones[2].y;
+
+    float dx_2 = facteur_5* drones[2].vitesse;
+    float dy_2 = facteur_6* drones[2].vitesse;
+            
+    drones[2].x += dx_2;
+    drones[2].y += dy_2;
+    
+
+    for (int i = 0; i < nb_drones; i++) {  
         // Vérifier que les drones ne sortent pas de la fenêtre (800x600)
-        if (drones[i].x > 790) drones[i].x = 10; // Réinitialiser la position X si trop loin
-        if (drones[i].y > 590) drones[i].y = 10; // Réinitialiser la position Y si trop loin
+        if (drones[i].x < 0) drones[i].x = 0;
+        if (drones[i].x > MAX_X) drones[i].x = MAX_X;
+
+        if (drones[i].y < 0) drones[i].y = 0;
+        if (drones[i].y > MAX_Y) drones[i].y = MAX_Y;
+
     }
 }
 
@@ -73,8 +122,8 @@ void apply_blur(SDL_Surface *surface, float blur) {
     Uint32 *new_pixels = malloc(width * height * sizeof(Uint32));
 
     // Parcourir chaque pixel de l'image
-    for (int y = blur; y < height -blur; y++) {
-        for (int x = blur; x < width - blur; x++) {
+    for (int y = 1; y < height -1; y++) {
+        for (int x = 1; x < width - 1; x++) {
             int r_sum = 0, g_sum = 0, b_sum = 0;
 
             // Moyenne des couleurs des pixels voisins (3x3 box blur)
@@ -113,6 +162,25 @@ void apply_blur(SDL_Surface *surface, float blur) {
     SDL_UnlockSurface(surface);
 }
 
+void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer) {
+    for (int i = 0; i < nb_drones; i++) {
+        if (drones[i].actif && drones[i].texture) {
+            // Définir la zone où dessiner l'image du drone
+            SDL_Rect destination;
+            destination.x = (int)drones[i].x;
+            destination.y = (int)drones[i].y;
+            float w = 20.0*(((int)drones[i].taille)/20.0);
+            float h = 20.0*(((int)drones[i].taille)/20.0);
+            destination.w = w;
+            destination.h = h;
+
+
+            // Dessiner la texture du drone
+            SDL_RenderCopy(renderer, drones[i].texture, NULL, &destination);
+        }
+    }
+}
+
 int main() {
 
     // Initialiser SDL et SDL_image
@@ -132,7 +200,7 @@ int main() {
         return 1;
     }
     
-    apply_blur(image_surface, 1);
+    apply_blur(image_surface, 1.5);
 
     // Convertir l'image en texture pour l'afficher
     SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, image_surface);
@@ -147,8 +215,24 @@ int main() {
     init_drone(&drones[1], 2, 30.0, 20.0, 5.0, 1.2, 25.0, 20);
     init_drone(&drones[2], 3, 30.0, 550.0, 5.0, 1.8, 35.0, 10);
 
+    drones[0].texture = charger_image_drone("drone1.jpg", renderer);
+    drones[1].texture = charger_image_drone("drone2.jpg", renderer);
+    drones[2].texture = charger_image_drone("drone3.jpg", renderer);
+
     int running = 1;
     SDL_Event event;
+
+    Uint32 start_time = SDL_GetTicks();
+
+    float facteur_1 = 0;
+    float facteur_2 = 0;
+    float facteur_3 = 0;
+    float facteur_4 = 0;
+    float facteur_5 = 0;
+    float facteur_6 = 0;
+
+
+    srand(time(NULL));
 
     while (running) {
         // Gérer les événements (comme la fermeture de la fenêtre)
@@ -158,23 +242,46 @@ int main() {
             }
         }
 
-        // Déplacer les drones à chaque cycle
-        deplacer_drones(drones, nb_drones);
+        // Vérifier si 5 secondes se sont écoulées
+        Uint32 current_time = SDL_GetTicks();
+        
+        if (current_time - start_time >= 1000 && current_time - start_time <= 1050) {
+            
+            facteur_1 = (2.0f * ((float)rand() / RAND_MAX)- 1.0f);
+            facteur_2 = (2.0f * ((float)rand() / RAND_MAX) - 1.0f);
+            facteur_3 = (2.0f * ((float)rand() / RAND_MAX)- 1.0f);
+            facteur_4 = (2.0f * ((float)rand() / RAND_MAX) - 1.0f);
+            facteur_5 = (2.0f * ((float)rand() / RAND_MAX)- 1.0f);
+            facteur_6 = (2.0f * ((float)rand() / RAND_MAX) - 1.0f);
 
-        // Afficher le masque noir (initialement couvrant la carte)
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Noir pour le masque
-        SDL_RenderClear(renderer);  // Remplir toute la fenêtre de noir
+
+            start_time = SDL_GetTicks();
+        }
+
+        deplacer_drones(drones, nb_drones, facteur_1, facteur_2, facteur_3, facteur_4, facteur_5, facteur_6);
+
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); 
+        SDL_RenderClear(renderer);  
 
         // Révéler la carte progressivement avec les drones
         for (int i = 0; i < nb_drones; i++) {
             reveal_map(renderer, map_texture, &drones[i]);
         }
 
+        dessiner_drones(drones, 3, renderer);
+
         // Mettre à jour l'affichage
         SDL_RenderPresent(renderer);
 
         // Attendre 16 millisecondes (~60 FPS)
         SDL_Delay(16);
+    }
+
+     for (int i = 0; i < 3; i++) {
+        if (drones[i].texture) {
+            SDL_DestroyTexture(drones[i].texture);
+        }
     }
 
     // Nettoyer les ressources
