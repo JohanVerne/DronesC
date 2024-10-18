@@ -64,64 +64,74 @@ void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone)
     SDL_RenderCopy(renderer, map_texture, &src_rect, &src_rect);
 }
 
-void apply_blur(SDL_Surface *surface, float blur)
+void apply_blur(SDL_Surface *surface, int blur_radius)
 {
-    // Obtenir les dimensions de l'image
+    if (SDL_MUSTLOCK(surface))
+    {
+        SDL_LockSurface(surface);
+    }
+
     int width = surface->w;
     int height = surface->h;
+    int bpp = surface->format->BytesPerPixel;
 
-    // Verrouiller la surface pour l'accès direct aux pixels
-    SDL_LockSurface(surface);
+    // Create a copy of the surface to avoid modifying the original while reading pixel data
+    SDL_Surface *temp_surface = SDL_ConvertSurface(surface, surface->format, 0);
 
-    // Pointeur vers les pixels de la surface
-    Uint32 *pixels = (Uint32 *)surface->pixels;
+    Uint8 *pixels = (Uint8 *)surface->pixels;
+    Uint8 *temp_pixels = (Uint8 *)temp_surface->pixels;
 
-    // Créer un tableau temporaire pour stocker les nouveaux pixels
-    Uint32 *new_pixels = malloc(width * height * sizeof(Uint32));
-
-    // Parcourir chaque pixel de l'image
-    for (int y = 1; y < height - 1; y++)
+    for (int y = 0; y < height; y++)
     {
-        for (int x = 1; x < width - 1; x++)
+        for (int x = 0; x < width; x++)
         {
-            int r_sum = 0, g_sum = 0, b_sum = 0;
+            int r_sum = 0, g_sum = 0, b_sum = 0, a_sum = 0;
+            int count = 0;
 
-            // Moyenne des couleurs des pixels voisins (3x3 box blur)
-            for (int dy = -blur; dy <= blur; dy++)
+            // Loop through the surrounding pixels within the blur radius
+            for (int dy = -blur_radius; dy <= blur_radius; dy++)
             {
-                for (int dx = -blur; dx <= blur; dx++)
+                for (int dx = -blur_radius; dx <= blur_radius; dx++)
                 {
-                    Uint32 pixel = pixels[(y + dy) * width + (x + dx)];
+                    int nx = x + dx;
+                    int ny = y + dy;
 
-                    // Extraire les composants rouge, vert, bleu du pixel
-                    Uint8 r, g, b;
-                    SDL_GetRGB(pixel, surface->format, &r, &g, &b);
+                    // Check bounds
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height)
+                    {
+                        Uint8 *pixel = temp_pixels + (ny * surface->pitch) + (nx * bpp);
 
-                    // Ajouter les composants au total
-                    r_sum += r;
-                    g_sum += g;
-                    b_sum += b;
+                        Uint8 r, g, b, a;
+                        SDL_GetRGBA(*(Uint32 *)pixel, surface->format, &r, &g, &b, &a);
+
+                        r_sum += r;
+                        g_sum += g;
+                        b_sum += b;
+                        a_sum += a;
+                        count++;
+                    }
                 }
             }
 
-            // Calculer la moyenne des couleurs
-            Uint8 r_avg = r_sum / 9;
-            Uint8 g_avg = g_sum / 9;
-            Uint8 b_avg = b_sum / 9;
+            // Calculate the average color of the surrounding pixels
+            r_sum /= count;
+            g_sum /= count;
+            b_sum /= count;
+            a_sum /= count;
 
-            // Réassembler la couleur et la stocker dans le tableau temporaire
-            new_pixels[y * width + x] = SDL_MapRGB(surface->format, r_avg, g_avg, b_avg);
+            // Set the blurred pixel value
+            Uint8 *current_pixel = pixels + (y * surface->pitch) + (x * bpp);
+            *(Uint32 *)current_pixel = SDL_MapRGBA(surface->format, r_sum, g_sum, b_sum, a_sum);
         }
     }
 
-    // Copier les nouveaux pixels dans la surface
-    memcpy(pixels, new_pixels, width * height * sizeof(Uint32));
+    // Free the temporary surface
+    SDL_FreeSurface(temp_surface);
 
-    // Libérer le tableau temporaire
-    free(new_pixels);
-
-    // Déverrouiller la surface
-    SDL_UnlockSurface(surface);
+    if (SDL_MUSTLOCK(surface))
+    {
+        SDL_UnlockSurface(surface);
+    }
 }
 void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer)
 {
@@ -134,8 +144,8 @@ void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer)
 
             // Scale the drone image based on the z parameter
             float scale = drones[i].z / 100.0f; // adjust the scale factor as needed
-            int scaled_w = (int)(w * scale);
-            int scaled_h = (int)(h * scale);
+            int scaled_w = (int)(w * scale) + 5;
+            int scaled_h = (int)(h * scale) + 5;
 
             // Définir la zone où dessiner l'image du drone
             SDL_Rect destination;
@@ -194,7 +204,7 @@ int main()
 
     // Initialisation des drones avec des paramètres arbitraires
     init_drone(&drones[0], 1, 250.0, 120.0, 5.0, 1.5, 30.0, dims);
-    init_drone(&drones[1], 2, 30.0, 20.0, 5.0, 1.2, 25.0, dims);
+    init_drone(&drones[1], 2, 250.0, 120.0, 15.0, 1.2, 25.0, dims);
     init_drone(&drones[2], 3, 530.0, 50.0, 5.0, 1.8, 35.0, dims);
 
     for (int i = 0; i < nb_drones; i++)

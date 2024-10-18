@@ -29,6 +29,6 @@ void detruire_drone(Drone *drone);
 int restrictionZone(Zone *zone, float nx, float ny, float nz, int dims[3]);
 int collisionDrones(Drone *drone1, Drone *drone2);
 SDL_Texture *charger_image_drone(const char *fichier_image, SDL_Renderer *renderer);
-void apply_blur(SDL_Surface *surface, float blur);
+void apply_blur(SDL_Surface *surface, int blur_radius);
 void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer);
 #endif
