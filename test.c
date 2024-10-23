@@ -156,7 +156,7 @@ void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer) {
             float h = 20.0*(((int)drones[i].taille)/20.0);
             destination.w = w;
             destination.h = h;
-
+            
             // Dessiner la texture du drone
             SDL_RenderCopy(renderer, drones[i].texture, NULL, &destination);
         }
@@ -179,18 +179,14 @@ int main() {
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-
     // Charger l'image de la carte
     SDL_Surface *image_surface = IMG_Load("carte.png");  // Charger l'image depuis un fichier
+
     if (!image_surface) {
         printf("Erreur de chargement de l'image: %s\n", IMG_GetError());
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        IMG_Quit();
-        SDL_Quit();
         return 1;
     }
-    
+
 
     // Convertir l'image en texture pour l'afficher
     SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, image_surface);
@@ -260,17 +256,8 @@ int main() {
         deplacer_drones(drones, nb_drones, F);
 
 
-        // Obtenir les dimensions de la fenêtre
-        int width, height;
-        SDL_GetWindowSize(window, &width, &height);
-
-        // Définir le rectangle de destination avec les dimensions de la fenêtre
-        SDL_Rect destination = {0, 0, width, height};
-
-     
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer); 
-
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); 
+        SDL_RenderClear(renderer);  
 
 
         // Révéler la carte progressivement avec les drones
@@ -279,13 +266,9 @@ int main() {
         }
 
         dessiner_drones(drones, nb_drones, renderer);
-        
 
-        
         // Mettre à jour l'affichage
         SDL_RenderPresent(renderer);
-        
-        
 
         // Attendre 16 millisecondes (~60 FPS)
         SDL_Delay(16);
