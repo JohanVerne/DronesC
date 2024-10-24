@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>  // Bibliothèque pour charger des images
+#include <SDL2/SDL_image.h>  
 #include <time.h>
 
 
@@ -13,9 +13,17 @@ typedef struct {
     float vitesse;    // Vitesse de déplacement du drone
     int actif;        // Indique si le drone est actif ou détruit
     float prev_x, prev_y; // Position précédente du drone pour laisser le tracé
-    float taille; // Taille du drone
+    float taille;     // Taille du drone
     SDL_Texture *texture;
 } Drone;
+
+
+// Structure représentant un obstacle
+typedef struct {
+    float x, y;       // Position centrale de l'obstacle
+    float rayon;     // Rayon de l'obstacle (supposé circulaire, peut être une taille si rectangulaire)
+    SDL_Texture *texture; // Texture de l'image de l'obstacle
+} Obstacle;
 
 
 SDL_Texture* charger_image_drone(const char *drone, SDL_Renderer *renderer) {
@@ -24,16 +32,21 @@ SDL_Texture* charger_image_drone(const char *drone, SDL_Renderer *renderer) {
     // Charger l'image avec SDL_image
     SDL_Surface *surface = IMG_Load(drone);
 
-    if (!surface) {
-        printf("Erreur lors du chargement de l'image %s: %s\n", drone, IMG_GetError());
-        return NULL;
-    }
-
     // Convertir la surface en texture
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_FreeSurface(surface);  // Libérer la surface après la conversion en texture
     return texture;
 }
+
+
+// Fonction pour charger une image PNG pour un obstacle
+SDL_Texture* charger_image_obstacle(const char *fichier_image, SDL_Renderer *renderer) {
+    SDL_Surface *surface = IMG_Load(fichier_image);
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);  // Libérer la surface maintenant que la texture est créée
+    return texture;
+}
+
 
 // Initialisation d'un drone
 void init_drone(Drone *drone, int id, float x, float y, float z, float vitesse, float taille) {
@@ -62,10 +75,10 @@ void deplacer_drones(Drone *drones, int nb_drones, float *F) {
                 drones[i].x += dx; // Remplacer la position
                 drones[i].y += dy;
 
-                if (drones[i].x < 0) drones[i].x = 0; // Ne pas dépasser les limites du cadre pour l'abscisse 
+                if (drones[i].x < 0) drones[i].x = 0; // Ne pas dépasser les limites du cadre pour l'abscisse du drone
                 if (drones[i].x > 770) drones[i].x = 770;
 
-                if (drones[i].y < 0) drones[i].y = 0; // Ne pas dépasser les limites du cadre pour l'ordonée
+                if (drones[i].y < 0) drones[i].y = 0; // Ne pas dépasser les limites du cadre pour l'ordonée du drone
                 if (drones[i].y > 570) drones[i].y = 570;
     }
     
@@ -79,61 +92,59 @@ void reveal_map(SDL_Renderer *renderer, SDL_Texture *map_texture, Drone *drone) 
 
 }
 
-// Appliquer le flou à l'image
-void apply_blur(SDL_Surface *surface, float facteur) {
-    // Obtenir les dimensions de l'image
-    int width = surface->w;
-    int height = surface->h;
+// Fonction pour appliquer un flou à une image (surface SDL)
+void apply_blur(SDL_Surface *surface, float blur_factor) {
+    // Vérifier si la surface est valide
+    if (!surface) return;
 
-    // Verrouiller la surface pour l'accès direct aux pixels
-    SDL_LockSurface(surface);
+    // Calcul de la taille de la matrice de flou en fonction du facteur
+    int radius = (int)blur_factor;
 
-    // Pointeur vers les pixels de la surface
-    Uint32 *pixels = (Uint32 *)surface->pixels;
-
-    // Créer un tableau temporaire pour stocker les nouveaux pixels
-    Uint32 *new_pixels = malloc(width * height * sizeof(Uint32));
+    // Créer une copie de la surface pour lire les pixels d'origine
+    SDL_Surface *temp_surface = SDL_ConvertSurface(surface, surface->format, 0);
+    if (!temp_surface) return;
 
     // Parcourir chaque pixel de l'image
-    for (int y = 1; y < height -1; y++) {
-        for (int x = 1; x < width - 1; x++) {
+    for (int y = 0; y < surface->h; y++) {
+        for (int x = 0; x < surface->w; x++) {
+            float r_sum = 0, g_sum = 0, b_sum = 0;
+            int count = 0;
 
-            int r_sum = 0, g_sum = 0, b_sum = 0;
+            // Parcourir les pixels voisins 
+            for (int ky = -radius; ky <= radius; ky++) {
+                for (int kx = -radius; kx <= radius; kx++) {
+                    int nx = x + kx;
+                    int ny = y + ky;
 
-            // Moyenne des couleurs des pixels voisins (3x3) en prenant en compte le facteur de flou
-            for (int dy = -facteur; dy <= facteur; dy++) {
-                for (int dx = -facteur; dx <= facteur; dx++) {
-                    Uint32 pixel = pixels[(y + dy) * width + (x + dx)];
+                    // Vérifier que les coordonnées sont dans les limites de l'image
+                    if (nx >= 0 && nx < surface->w && ny >= 0 && ny < surface->h) {
+                        // Obtenir la couleur du pixel voisin depuis l'image d'origine
+                        Uint32 pixel = ((Uint32 *)temp_surface->pixels)[ny * temp_surface->w + nx];
+                        Uint8 r, g, b;
+                        SDL_GetRGB(pixel, temp_surface->format, &r, &g, &b);
 
-                    // Extraire les composants rouge, vert, bleu du pixel
-                    Uint8 r, g, b;
-                    SDL_GetRGB(pixel, surface->format, &r, &g, &b);
-
-                    // Ajouter les composants au total
-                    r_sum += r;
-                    g_sum += g;
-                    b_sum += b;
+                        // Additionner les valeurs des composantes RVB
+                        r_sum += r;
+                        g_sum += g;
+                        b_sum += b;
+                        count++;
+                    }
                 }
             }
 
             // Calculer la moyenne des couleurs
-            Uint8 r_avg = r_sum / 9;
-            Uint8 g_avg = g_sum / 9;
-            Uint8 b_avg = b_sum / 9;
+            Uint8 r = (Uint8)(r_sum / count);
+            Uint8 g = (Uint8)(g_sum / count);
+            Uint8 b = (Uint8)(b_sum / count);
 
-            // Réassembler la couleur et la stocker dans le tableau temporaire
-            new_pixels[y * width + x] = SDL_MapRGB(surface->format, r_avg, g_avg, b_avg);
+            // Mettre à jour la couleur du pixel dans la surface d'origine
+            Uint32 new_pixel = SDL_MapRGB(surface->format, r, g, b);
+            ((Uint32 *)surface->pixels)[y * surface->w + x] = new_pixel;
         }
     }
 
-    // Copier les nouveaux pixels dans la surface
-    memcpy(pixels, new_pixels, width * height * sizeof(Uint32));
-
-    // Libérer le tableau temporaire
-    free(new_pixels);
-
-    // Déverrouiller la surface
-    SDL_UnlockSurface(surface);
+    // Libérer la surface temporaire
+    SDL_FreeSurface(temp_surface);
 }
 
 void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer) {
@@ -155,19 +166,32 @@ void dessiner_drones(Drone *drones, int nb_drones, SDL_Renderer *renderer) {
     }
 }
 
-// Générer un réel aléatoire entre -1 et 1 
-float generate_random_float() {
-    return 2.0f * ((float)rand() / RAND_MAX) - 1.0f;
+// Fonction pour dessiner les obstacles avec leurs textures
+void dessiner_obstacles(Obstacle *obstacles, int nb_obstacles, SDL_Renderer *renderer) {
+    for (int i = 0; i < nb_obstacles; i++) {
+        if (obstacles[i].texture) {
+            // Définir le rectangle de destination pour dessiner l'obstacle
+            SDL_Rect destination;
+            destination.x = (int)(obstacles[i].x - obstacles[i].rayon);  // Centrer l'image de l'obstacle
+            destination.y = (int)(obstacles[i].y - obstacles[i].rayon);
+            destination.w = (int)(2 * obstacles[i].rayon);  // Largeur = diamètre de l'obstacle
+            destination.h = (int)(2 * obstacles[i].rayon);  // Hauteur = diamètre de l'obstacle
+
+            // Dessiner la texture de l'obstacle
+            SDL_RenderCopy(renderer, obstacles[i].texture, NULL, &destination);
+        }
+    }
 }
+
 
 // Fonction pour vérifier si deux drones sont en collision
 int verifier_collision(Drone *drone1, Drone *drone2) {
     // Calcul de la distance entre les deux drones
     float distance = sqrt(pow(drone1->x - drone2->x, 2) + pow(drone1->y - drone2->y, 2));
     
-    // Rayon arbitraire pour chaque drone (à ajuster selon la taille réelle des drones)
-    float rayon1 = 10.0;  // Par exemple, un rayon de 10 unités pour drone1
-    float rayon2 = 10.0;  // Par exemple, un rayon de 10 unités pour drone2
+    // Rayon qui correspond à la taille des drones
+    float rayon1 = (drone1->taille);  
+    float rayon2 = (drone2->taille);  
 
     // Vérifier si la distance entre les deux drones est inférieure à la somme de leurs rayons
     if (distance < (rayon1 + rayon2)) {
@@ -183,11 +207,9 @@ void gerer_collisions(Drone *drones, int nb_drones) {
     for (int i = 0; i < nb_drones; i++) {
         for (int j = i + 1; j < nb_drones; j++) {
             if (verifier_collision(&drones[i], &drones[j])) {
-                // Si une collision est détectée, inverser la direction des drones impliqués
+                // Si une collision est détectée, inverser la direction
                 drones[i].vitesse = -drones[i].vitesse;
                 drones[j].vitesse = -drones[j].vitesse;
-
-                // Vous pouvez ajouter d'autres actions ici (par exemple, les éloigner l'un de l'autre)
                 printf("Collision détectée entre drone %d et drone %d\n", drones[i].id, drones[j].id);
             }
         }
@@ -196,21 +218,19 @@ void gerer_collisions(Drone *drones, int nb_drones) {
 
 // Fonction pour vérifier si un drone est proche des murs et ajuster sa direction
 void gerer_murs(Drone *drone, int largeur_zone, int hauteur_zone) {
-    // Marge de sécurité pour éviter que les drones se rapprochent trop des bords
-    float marge = 20.0;
 
     // Vérifier si le drone est proche du mur gauche ou droit
-    if (drone->x <= marge) {
-        drone->vitesse = fabs(drone->vitesse);  // Diriger vers la droite
-    } else if (drone->x >= (largeur_zone - marge)) {
-        drone->vitesse = -fabs(drone->vitesse);  // Diriger vers la gauche
+    if (drone->x == 0) {
+        drone->vitesse = -(drone->vitesse);  // Diriger vers la droite
+    } else if (drone->x >= (largeur_zone)) {
+        drone->vitesse = -(drone->vitesse);  // Diriger vers la gauche
     }
 
     // Vérifier si le drone est proche du mur supérieur ou inférieur
-    if (drone->y <= marge) {
-        drone->vitesse = fabs(drone->vitesse);  // Diriger vers le bas
-    } else if (drone->y >= (hauteur_zone - marge)) {
-        drone->vitesse = -fabs(drone->vitesse);  // Diriger vers le haut
+    if (drone->y == 0) {
+        drone->vitesse = -(drone->vitesse);  // Diriger vers le bas
+    } else if (drone->y >= (hauteur_zone)) {
+        drone->vitesse = -(drone->vitesse);  // Diriger vers le haut
     }
 }
 
@@ -219,6 +239,39 @@ void gerer_murs_pour_tous_les_drones(Drone *drones, int nb_drones, int largeur_z
     for (int i = 0; i < nb_drones; i++) {
         gerer_murs(&drones[i], largeur_zone, hauteur_zone);
     }
+}
+
+// Fonction pour vérifier si un drone est proche d'un obstacle
+int verifier_collision_obstacle(Drone *drone, Obstacle *obstacle) {
+    // Calculer la distance entre le drone et l'obstacle
+    float distance = sqrt(pow(drone->x - obstacle->x, 2) + pow(drone->y - obstacle->y, 2));
+    
+    // Vérifier si la distance est inférieure à la somme du rayon de l'obstacle et du drone 
+    float rayon_drone = (drone->taille*2.0); 
+    if (distance < (obstacle->rayon + rayon_drone)) {
+        return 1;  // Collision détectée
+    }
+
+    return 0;  // Pas de collision
+}
+
+// Fonction pour faire éviter les obstacles à tous les drones
+void esquiver_obstacles(Drone *drones, int nb_drones, Obstacle *obstacles, int nb_obstacles) {
+    for (int i = 0; i < nb_drones; i++) {
+        for (int j = 0; j < nb_obstacles; j++) {
+            if (verifier_collision_obstacle(&drones[i], &obstacles[j])) {
+
+                // Inverser la direction de déplacement
+                drones[i].vitesse = -drones[i].vitesse;
+                printf("Drone %d a évité un obstacle en position (%.2f, %.2f)\n", drones[i].id, drones[i].x, drones[i].y);
+            }
+        }
+    }
+}
+
+// Fonction pour générer un réel aléatoire entre -1 et 1 
+float generate_random_float() {
+    return 2.0f * ((float)rand() / RAND_MAX) - 1.0f;
 }
 
 int main() {
@@ -235,36 +288,7 @@ int main() {
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
 
-    // Charger l'image de la carte
-    SDL_Surface *image_surface = IMG_Load("carte.png");  // Charger l'image depuis un fichier
-    
-    SDL_Surface *image_surface2 = IMG_Load("carte.png");  // Charger l'image depuis un fichier
-
-    if (!image_surface) {
-        printf("Erreur de chargement de l'image: %s\n", IMG_GetError());
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        IMG_Quit();
-        SDL_Quit();
-        return 1;
-    }
-
-    // Applique un flou à l'image
-    apply_blur(image_surface, 1.5);
-
-    apply_blur(image_surface2, 0.5);
-    
-
-    // Convertir l'image en texture pour l'afficher
-    SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, image_surface);
-    SDL_FreeSurface(image_surface);  // Libérer la surface maintenant que nous avons la texture
-
-  // Convertir l'image en texture pour l'afficher
-    SDL_Texture *map_texture2 = SDL_CreateTextureFromSurface(renderer, image_surface2);
-    SDL_FreeSurface(image_surface2);  // Libérer la surface maintenant que nous avons la texture
-
-    
-    // Création de trois drones pour la démonstration
+    // Création de quatre drones pour la démonstration
     int nb_drones = 4;
     Drone drones[nb_drones];
 
@@ -274,9 +298,90 @@ int main() {
     init_drone(&drones[2], 3, 30.0, 550.0, 5.0, 1.3, 30);
     init_drone(&drones[3], 3, 750.0, 550.0, 5.0, 1.0, 40);
 
-    // Charge une image JPEG pour chaque drone
+
+    int nb_obstacles = 2;
+    Obstacle obstacles[2] = {
+        {200, 300, 50},  // Un obstacle de rayon 50 en position (200, 300)
+        {500, 400, 30}   // Un obstacle de rayon 30 en position (500, 400)
+    };
+
+
+    // Charger les 4 images de la carte qui correspondent aux différents niveaux de flou
+
+    SDL_Surface *image_surface = IMG_Load("carte.png");  // Charger l'image depuis un fichier
+    
+    SDL_Surface *image_surface2 = IMG_Load("carte.png"); 
+
+    SDL_Surface *image_surface3 = IMG_Load("carte.png");  
+
+    SDL_Surface *image_surface4 = IMG_Load("carte.png");  
+
+
+    // Redimensionner les 4 images
+    SDL_Surface *scaled_surface = SDL_CreateRGBSurface(0,
+                                                       SDL_GetWindowSurface(window)->w,
+                                                       SDL_GetWindowSurface(window)->h,
+                                                       32, 0, 0, 0, 0);
+    SDL_BlitScaled(image_surface, NULL, scaled_surface, NULL);
+
+
+    SDL_Surface *scaled_surface2 = SDL_CreateRGBSurface(0,
+                                                       SDL_GetWindowSurface(window)->w,
+                                                       SDL_GetWindowSurface(window)->h,
+                                                       32, 0, 0, 0, 0);
+    SDL_BlitScaled(image_surface2, NULL, scaled_surface2, NULL);
+
+
+    SDL_Surface *scaled_surface3 = SDL_CreateRGBSurface(0,
+                                                       SDL_GetWindowSurface(window)->w,
+                                                       SDL_GetWindowSurface(window)->h,
+                                                       32, 0, 0, 0, 0);
+    SDL_BlitScaled(image_surface3, NULL, scaled_surface3, NULL);
+
+
+    SDL_Surface *scaled_surface4 = SDL_CreateRGBSurface(0,
+                                                       SDL_GetWindowSurface(window)->w,
+                                                       SDL_GetWindowSurface(window)->h,
+                                                       32, 0, 0, 0, 0);
+    SDL_BlitScaled(image_surface4, NULL, scaled_surface4, NULL);
+
+
+
+    // Applique un flou différent aux 4 images
+    apply_blur(scaled_surface, 0.5);
+
+    apply_blur(scaled_surface2, 1.0);
+
+    apply_blur(scaled_surface3, 1.5);
+
+    apply_blur(scaled_surface4, 2.0);
+    
+
+    // Convertir l'image en texture pour l'afficher
+    SDL_Texture *map_texture = SDL_CreateTextureFromSurface(renderer, scaled_surface);
+    SDL_FreeSurface(scaled_surface); // Libérer la surface redimensionnée
+
+  
+    SDL_Texture *map_texture2 = SDL_CreateTextureFromSurface(renderer, scaled_surface2);
+    SDL_FreeSurface(scaled_surface2); 
+
+ 
+    SDL_Texture *map_texture3 = SDL_CreateTextureFromSurface(renderer, scaled_surface3);
+    SDL_FreeSurface(scaled_surface3); 
+
+        
+    SDL_Texture *map_texture4 = SDL_CreateTextureFromSurface(renderer, scaled_surface4);
+    SDL_FreeSurface(scaled_surface4); 
+
+
+
+    // Charge une image PNG pour chaque drone
     for (int i = 0; i < nb_drones; i++) {
-        drones[i].texture = charger_image_drone("drone1.jpg", renderer);
+        drones[i].texture = charger_image_drone("drone.png", renderer);
+    }
+
+    for (int i = 0; i < nb_obstacles; i++) {
+        obstacles[i].texture = charger_image_obstacle("obstacle.png", renderer);
     }
 
 
@@ -285,10 +390,10 @@ int main() {
 
     Uint32 start_time = SDL_GetTicks(); // Sauvegarde le temps
 
-    // Initialise la graine pour la génération de nombres aléatoires.
+    // Initialise la graine pour la génération de nombres aléatoires
     srand(time(NULL));
 
-    // Alloue un tableau dynamique pour les directions X et Y de chaque drone.
+    // Alloue un tableau dynamique pour les directions X et Y de chaque drone
     float *F = (float *)malloc((nb_drones*2) * sizeof(float));
 
     for (int i = 0; i < nb_drones; i++) {
@@ -310,7 +415,7 @@ int main() {
 
     while (running) {
 
-        // Gérer les événements (comme la fermeture de la fenêtre)
+        // Gérer la fermeture de la fenêtre)
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = 0;
@@ -331,11 +436,15 @@ int main() {
         }
 
          // Vérifier les collisions avec les murs pour chaque drone
-        gerer_murs_pour_tous_les_drones(drones, nb_drones, 800, 600);
+        gerer_murs_pour_tous_les_drones(drones, nb_drones, 770, 570);
 
 
         // Vérification des collisions entre les drones
         gerer_collisions(drones, nb_drones);
+
+
+        // Vérifier les collisions entre les drones et les obstacles
+        esquiver_obstacles(drones, nb_drones, obstacles, nb_obstacles);
 
 
         // Déplacer les drones
@@ -345,16 +454,18 @@ int main() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
 
-
-
-        // Révéler la carte progressivement avec les drones
-        for (int i = 0; i < nb_drones; i++) {
-            reveal_map(renderer, map_texture, &drones[i]);
-        }
+        // Révéler la carte progressivement avec les drones selon leur résolution
+        reveal_map(renderer, map_texture, &drones[0]);
+        reveal_map(renderer, map_texture2, &drones[1]);
+        reveal_map(renderer, map_texture3, &drones[2]);
+        reveal_map(renderer, map_texture4, &drones[3]);
 
 
         // Dessiner les drones
         dessiner_drones(drones, nb_drones, renderer);
+
+        // Dessiner les obstacles
+        dessiner_obstacles(obstacles, nb_obstacles, renderer);
     
         
         // Mettre à jour l'affichage
@@ -364,17 +475,28 @@ int main() {
 
         // Attendre 16 millisecondes (~60 FPS)
         SDL_Delay(16);
-        }
-
-    for (int i = 0; i < 3; i++) {
-        if (drones[i].texture) {
-            SDL_DestroyTexture(drones[i].texture);
-        }
     }
 
     // Nettoyer les ressources
+
+    for (int i = 0; i < nb_obstacles; i++) {
+        if (obstacles[i].texture) {
+            SDL_DestroyTexture(obstacles[i].texture);
+        }
+    }
+
+    for (int i = 0; i < nb_drones; i++) {
+        if (drones[i].texture) {
+            SDL_DestroyTexture(drones[i].texture);
+        }
+
+    
+    }
+
     SDL_DestroyTexture(map_texture);
     SDL_DestroyTexture(map_texture2);
+    SDL_DestroyTexture(map_texture3);
+    SDL_DestroyTexture(map_texture4);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
