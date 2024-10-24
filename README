@@ -1,1 +1,10 @@
+<<<<<<< HEAD
 Projet drones en C
+=======
+Le lancement du programme s'effectue en exécutant le fichier Main. Celui-ci peut être recompilé à votre convenance avec la commande make.
+
+Cette application est une application de simulation de déplacement de drones afin de cartographier une zone précédemment inconnue.
+Les drones se déplacent de manière aléatoire tout en évitant de sortir de la zone à cartographier (ici les bords de la fenêtre) et en évitant les obstacles potentiels.
+La résolution de la zone révélée dépend de la hauteur du drone qui l'a photographié : plus le drone est haut, plus la zone cartographiée sera grande, mais elle sera aussi plus floue.
+La simulation déjà compilée représente un cas simple avec 4 drones démarrant à des hauteurs différentes dans les 4 coins de la zone à photographier.
+>>>>>>> test
